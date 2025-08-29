@@ -15,25 +15,36 @@ store_embeddings(chunks, embeddings)
 """
 
 from PyPDF2 import PdfReader
+import os
 
 
 
-def load_pdfs(folder):
+folder_path = os.fsencode("")
+
+def load_pdfs(folder_path):
     all_texts = []
-    for file in folder:
-        if file     
-        reader = PdfReader(file)
-        number_of_pages = len(reader.pages)
-        page = reader.pages[0]
-        text = page.extract_text()
-        chunk_text(text)
+    for file in os.listdir(folder_path):
+        filename = os.fsdecode(file)
+        if filename.endswith(".pdf"):     
+            reader = PdfReader(file)
+            number_of_pages = len(reader.pages)
+            for i in number_of_pages:    
+                page = reader.pages[i]
+                text = page.extract_text()
+                all_texts.append(text)
     return all_texts
 
-def chunk_text(text, size=500):
-    chunked_text = []
-    for word in text:
 
-        chunked_text.append(word)
+def chunk_text(text, chunk_size=500, overlap = 50):
+    text_len = len(text)
+    chunks = []
+    start = 0
+    while start < text_len:
+        end = start + chunk_size
+        chunk = text[start:end]
+        chunks.append(chunk)
+        start = end - overlap
+    return chunks
 
 
 

@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 from ingest import load_and_split_pdfs, store_embeddings
-from query import generate_answer
+from agent_chain import run_research_agent
 from datetime import datetime
 import pandas as pd
 
@@ -20,8 +20,8 @@ except ImportError:
 
 DB_PATH = "./vector_store"
 
-st.set_page_config(page_title="Research Copilot", layout="wide")
-st.title("📄 Research Copilot (LangChain)")
+st.set_page_config(page_title="Research Copilot Agent", layout="wide")
+st.title("📄 Research Copilot (LangChain Agent)")
 
 # ---- Document Upload Section ----
 st.header("1. Upload Documents")
@@ -41,17 +41,14 @@ if uploaded_files:
 
 # ---- Query Section ----
 st.header("2. Ask a Question")
-query = st.text_input("Enter your question:")
+user_query = st.text_input("Enter your research question:")
 
-if st.button("Get Answer") and query:
-    answer, sources = generate_answer(query)
+if st.button("Run Research Agent") and user_query:
+    with st.spinner("Running research agent..."):
+        final_report = run_research_agent(user_query)
 
-    st.subheader("AI Response")
-    st.write(answer)
-
-    st.subheader("Sources Used")
-    for doc in sources:
-        st.caption(doc.metadata.get("source", "Unknown"))
+    st.subheader("Final Research Report")
+    st.markdown(final_report)
 
     # ---- Evaluation Section ----
     st.header("3. Evaluate Answer")
@@ -66,8 +63,9 @@ if st.button("Get Answer") and query:
 
     elif eval_mode == "RAGAS" and ragas_available:
         st.write("Running RAGAS metrics...")
-        faith_score = faithfulness.run(sources, answer)
-        rel_score = answer_relevance.run(query, answer)
+        # In a full setup, context can be retrieved or passed separately
+        faith_score = faithfulness.run([], final_report)  # placeholder empty context
+        rel_score = answer_relevance.run(user_query, final_report)
         st.metric("Faithfulness", f"{faith_score:.2f}")
         st.metric("Relevance", f"{rel_score:.2f}")
         feedback = f"Faithfulness: {faith_score:.2f}, Relevance: {rel_score:.2f}"
@@ -88,8 +86,8 @@ if st.button("Get Answer") and query:
         os.makedirs("feedback", exist_ok=True)
         df = pd.DataFrame([{
             "timestamp": datetime.now(),
-            "query": query,
-            "answer": answer,
+            "query": user_query,
+            "report": final_report,
             "feedback": feedback
         }])
         feedback_file = "feedback/feedback_log.csv"

@@ -1,8 +1,8 @@
 # query.py
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.vectorstores import Chroma
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
 from langchain.chains import RetrievalQA
-from langchain.llms import HuggingFaceHub  # or OpenAI() if using GPT-4
+from langchain_community.llms import HuggingFaceHub  # or OpenAI() if using GPT-4
 import os
 
 DB_PATH = "./vector_store"

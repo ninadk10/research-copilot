@@ -22,3 +22,5 @@ def run_research_agent(user_query: str) -> str:
     """
     final_report = agent.run(user_query)
     return final_report
+
+

@@ -4,6 +4,8 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
+from sources import arxiv_search
+from fetch import fetch_pdf
 
 DATA_PATH = "data"
 DB_PATH = "./vector_store"
@@ -26,3 +28,12 @@ def store_embeddings(chunks, db_path=DB_PATH):
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     Chroma.from_documents(documents=chunks, embedding=embeddings, persist_directory=db_path)
     print(f"Stored {len(chunks)} chunks in vector store at {db_path}")
+
+
+def ingest_topic(query, max_results=5):
+    results = arxiv_search(query, max_results=max_results)
+    for paper in results:
+        pdf_path = fetch_pdf(paper["pdf_url"])
+        chunks = parse_and_chunk(pdf_path)
+        store_embeddings(chunks)
+    print(f"Ingested {len(results)} papers for topic: {query}")

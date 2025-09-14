@@ -1,13 +1,8 @@
 # query.py
-from langchain_huggingface import HuggingFaceEmbeddings, HuggingFaceEndpoint
+from langchain_community.llms import Ollama
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langchain.chains import RetrievalQA
-from langchain_community.llms import HuggingFaceHub  # or OpenAI() if using GPT-4
-import os
-from dotenv import load_dotenv
-
-# Load environment variables from .env
-load_dotenv()
 
 DB_PATH = "./vector_store"
 
@@ -19,12 +14,8 @@ def create_retriever():
 def generate_answer(query):
     retriever = create_retriever()
 
-    # Access token automatically from environment
-    llm = HuggingFaceEndpoint(
-    repo_id="mistralai/Mistral-7B-Instruct-v0.2",
-    task="conversational",   # 👈 force the task
-    huggingfacehub_api_token=os.getenv("HUGGINGFACEHUB_API_TOKEN")
-    )
+    # 🔹 Use Ollama LLM locally
+    llm = Ollama(model="llama3.2")  # or "mistral", "gemma", etc.
 
     qa_chain = RetrievalQA.from_chain_type(
         llm=llm,
@@ -32,9 +23,10 @@ def generate_answer(query):
         return_source_documents=True
     )
 
-    result = qa_chain(query)
+    result = qa_chain.invoke({"query": query})
     return result["result"], result["source_documents"]
 
-
-x,y = generate_answer("LLM")
-print(x,y)
+if __name__ == "__main__":
+    answer, sources = generate_answer("What is an LLM?")
+    print("Answer:", answer)
+    print("Sources:", sources)

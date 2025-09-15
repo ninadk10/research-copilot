@@ -4,7 +4,6 @@ from langchain_community.llms import Ollama
 from langchain.tools import Tool
 from query import generate_answer
 from langchain.tools import Tool
-from llm_utils import llm_call
 from langchain.tools import Tool
 from query import generate_answer
 

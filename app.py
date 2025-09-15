@@ -1,9 +1,14 @@
 import streamlit as st
 import os
-from ingest import arxiv_search, fetch_pdf, load_and_split_pdfs, store_embeddings
-from agent_pipeline import run_research_agent, planner_tool, researcher_tool, critic_tool, llm_call, writer_tool, 
+from ingest import arxiv_search, fetch_pdf, parse_and_chunk, store_embeddings, ingest_topic
+from agent_pipeline import run_research_agent, planner_tool, researcher_tool, critic_tool, llm_call, writer_tool
+import feedparser
 from datetime import datetime
 import pandas as pd
+import sys
+import os
+st.write(sys.executable)
+
 
 # ---- Evaluation Libraries ----
 try:
@@ -24,7 +29,7 @@ st.set_page_config(page_title="Research Copilot Agent", layout="wide")
 st.title("📄 Research Copilot (LangChain Agent)")
 
 # ---- Document Upload Section ----
-st.header("1. Upload Documents")
+st.header("1. Upload Documents (optional)")
 uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_files=True)
 
 if uploaded_files:
@@ -35,7 +40,7 @@ if uploaded_files:
     st.success(f"Uploaded {len(uploaded_files)} files.")
 
     if st.button("Process Documents"):
-        chunks = load_and_split_pdfs("data/")
+        chunks = parse_and_chunk("data/")
         store_embeddings(chunks, DB_PATH)
         st.success("Documents processed and stored.")
 

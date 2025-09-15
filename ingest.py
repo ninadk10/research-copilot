@@ -2,7 +2,7 @@
 import os
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 import feedparser
 import urllib.parse
@@ -81,4 +81,3 @@ def ingest_topic(query, max_results=5):
     print(f"Ingested {len(results)} papers for topic: {query}")
 
 
-ingest_topic("LLM")

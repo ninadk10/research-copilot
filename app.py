@@ -5,9 +5,6 @@ from agent_pipeline import run_research_agent, planner_tool, researcher_tool, cr
 import feedparser
 from datetime import datetime
 import pandas as pd
-import sys
-import os
-st.write(sys.executable)
 
 
 # ---- Evaluation Libraries ----

@@ -45,12 +45,35 @@ if uploaded_files:
 st.header("2. Ask a Question")
 user_query = st.text_input("Enter your research question:")
 
-if st.button("Run Research Agent") and user_query:
-    with st.spinner("Running research agent..."):
-        final_report = run_research_agent(user_query)
+if st.button("Run Research Agent") and user_query.strip():
+    st.info("Running the research pipeline...")
 
-    st.subheader("Final Research Report")
-    st.markdown(final_report)
+    # Step 1: Planner
+    with st.expander("1️⃣ Planning: Sub-questions"):
+        sub_questions = planner_tool(user_query)
+        for i, q in enumerate(sub_questions, 1):
+            st.write(f"{i}. {q}")
+
+    # Step 2: Researcher
+    findings = []
+    with st.expander("2️⃣ Researcher: Findings per Sub-question"):
+        for q in sub_questions:
+            st.write(f"**Q:** {q}")
+            answer = researcher_tool(q)
+            st.write(answer)
+            findings.append(answer)
+
+    compiled_findings = "\n\n".join(findings)
+
+    # Step 3: Writer
+    with st.expander("3️⃣ Writer: Draft Report"):
+        draft_report = writer_tool(compiled_findings)
+        st.write(draft_report)
+
+    # Step 4: Critic
+    with st.expander("4️⃣ Critic: Final Report"):
+        final_report = critic_tool(draft_report)
+        st.success(final_report)
 
     # ---- Evaluation Section ----
     st.header("3. Evaluate Answer")

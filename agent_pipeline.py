@@ -47,18 +47,24 @@ planner = Tool(
 # -----------------------
 def researcher_tool(sub_question: str) -> str:
     """
-    Ingest relevant papers + query the vector store for each sub-question.
+    For each sub-question:
+      1. Ingest relevant papers (fetch + embed).
+      2. Query the vector store for an answer.
     """
+    # Step 1: Fetch and store relevant docs for this sub-question
     ingest_topic(sub_question)
-    answer, sources = generate_answer(sub_question)
-    source_text = "\n".join([doc.metadata.get("source", "Unknown") for doc in sources])
-    return f"Q: {sub_question}\nA: {answer}\nSources:\n{source_text}\n"
 
+    # Step 2: Query the vector store for answers
+    answer, sources = generate_answer(sub_question)
+
+    # Format sources into short summary
+    source_text = "\n".join([doc.metadata.get("source", "Unknown") for doc in sources])
+    return f"{answer}\n\nSources:\n{source_text}"
 
 researcher = Tool(
     name="Researcher",
     func=researcher_tool,
-    description="Research sub-questions and provide answers with sources."
+    description="Use this tool to research sub-questions. It will fetch papers, embed them, and answer queries."
 )
 
 

@@ -1,11 +1,25 @@
 import streamlit as st
 import os
-from ingest import arxiv_search, fetch_pdf, parse_and_chunk, store_embeddings, ingest_topic
-from agent_pipeline import run_research_agent, planner_tool, researcher_tool, critic_tool, llm_call, writer_tool
-import feedparser
+from pathlib import Path
 from datetime import datetime
 import pandas as pd
 
+from ingest import (
+    arxiv_search,
+    fetch_pdf,
+    parse_and_chunk,
+    store_embeddings,
+    ingest_topic,
+    compute_file_hash,
+)
+from agent_pipeline import (
+    run_research_agent,
+    planner_tool,
+    researcher_tool,
+    critic_tool,
+    llm_call,
+    writer_tool,
+)
 
 # ---- Evaluation Libraries ----
 try:
@@ -21,6 +35,7 @@ except ImportError:
     trulens_available = False
 
 DB_PATH = "./vector_store"
+DATA_DIR = "data"
 
 st.set_page_config(page_title="Research Copilot Agent", layout="wide")
 st.title("📄 Research Copilot (LangChain Agent)")
@@ -30,16 +45,30 @@ st.header("1. Upload Documents (optional)")
 uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_files=True)
 
 if uploaded_files:
-    os.makedirs("data", exist_ok=True)
+    os.makedirs(DATA_DIR, exist_ok=True)
+
+    saved_files = []
     for uploaded_file in uploaded_files:
-        with open(os.path.join("data", uploaded_file.name), "wb") as f:
+        file_path = Path(DATA_DIR) / uploaded_file.name
+
+        # Save uploaded PDF
+        with open(file_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
-    st.success(f"Uploaded {len(uploaded_files)} files.")
+
+        saved_files.append(str(file_path))
+
+    st.success(f"Uploaded {len(saved_files)} files.")
 
     if st.button("Process Documents"):
-        chunks = parse_and_chunk("data/")
-        store_embeddings(chunks, DB_PATH)
-        st.success("Documents processed and stored.")
+        for file_path in saved_files:
+            file_hash = compute_file_hash(file_path)
+
+            # Check if already in vector store (file-level dedup)
+            chunks = parse_and_chunk(file_path)
+            store_embeddings(chunks, file_path=file_path, db_path=DB_PATH)
+
+        st.success("Documents processed and stored with deduplication.")
+
 
 # ---- Query Section ----
 st.header("2. Ask a Question")
@@ -80,7 +109,7 @@ if st.button("Run Research Agent") and user_query.strip():
     eval_mode = st.selectbox(
         "Choose Evaluation Method",
         ["Manual Feedback Only", "RAGAS", "TruLens"],
-        index=0
+        index=0,
     )
 
     if eval_mode == "Manual Feedback Only":
@@ -90,34 +119,4 @@ if st.button("Run Research Agent") and user_query.strip():
         st.write("Running RAGAS metrics...")
         # In a full setup, context can be retrieved or passed separately
         faith_score = faithfulness.run([], final_report)  # placeholder empty context
-        rel_score = answer_relevance.run(user_query, final_report)
-        st.metric("Faithfulness", f"{faith_score:.2f}")
-        st.metric("Relevance", f"{rel_score:.2f}")
-        feedback = f"Faithfulness: {faith_score:.2f}, Relevance: {rel_score:.2f}"
-
-    elif eval_mode == "TruLens" and trulens_available:
-        st.write("Running TruLens feedback...")
-        feedback_fn = Feedback(lambda _: 1.0)  # placeholder function
-        feedback_score = feedback_fn(None)
-        st.metric("TruLens Feedback Score", f"{feedback_score:.2f}")
-        feedback = f"TruLens Score: {feedback_score:.2f}"
-
-    else:
-        st.warning(f"{eval_mode} not available. Install required library.")
-        feedback = None
-
-    # Save feedback
-    if feedback and st.button("Save Feedback"):
-        os.makedirs("feedback", exist_ok=True)
-        df = pd.DataFrame([{
-            "timestamp": datetime.now(),
-            "query": user_query,
-            "report": final_report,
-            "feedback": feedback
-        }])
-        feedback_file = "feedback/feedback_log.csv"
-        if os.path.exists(feedback_file):
-            df.to_csv(feedback_file, mode='a', header=False, index=False)
-        else:
-            df.to_csv(feedback_file, index=False)
-        st.success("Feedback saved.")
+        rel_sc_

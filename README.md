@@ -16,21 +16,7 @@ Built with LangChain, ChromaDB, Streamlit, and evaluated using RAGAS + TruLens.
 ⚡ Extensible – Add more sources (PubMed, Semantic Scholar), swap embedding models, or extend agents.
 
 # 🏗️ Project Structure
-research-copilot/
-│
-├── ingest.py        # Ingests and embeds research papers
-├── query.py         # Queries the vector store
-├── app.py           # Streamlit UI entry point
-├── main.py          # Orchestrates the agentic workflow
-│
-├── copilot/
-│   ├── agents/      # Planner, Researcher, Writer, Critic chains
-│   ├── tools/       # Retriever + helper functions
-│   ├── eval/        # RAGAS + TruLens evaluation
-│   └── utils/       # Shared helpers
-│
-├── requirements.txt / pyproject.toml
-└── README.md
+
 
 # 🔧 Installation
 

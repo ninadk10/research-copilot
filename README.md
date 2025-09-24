@@ -1,4 +1,4 @@
-🧑‍🔬 Agentic AI Research Copilot
+# 🧑‍🔬 Agentic AI Research Copilot
 
 An open-source AI-powered research assistant that ingests academic papers, reasons with an agentic workflow, and produces structured literature reviews.
 
@@ -15,7 +15,7 @@ Built with LangChain, ChromaDB, Streamlit, and evaluated using RAGAS + TruLens.
 
 ⚡ Extensible – Add more sources (PubMed, Semantic Scholar), swap embedding models, or extend agents.
 
-🏗️ Project Structure
+# 🏗️ Project Structure
 research-copilot/
 │
 ├── ingest.py        # Ingests and embeds research papers
@@ -32,7 +32,7 @@ research-copilot/
 ├── requirements.txt / pyproject.toml
 └── README.md
 
-🔧 Installation
+# 🔧 Installation
 
 Clone the repo:
 
@@ -56,7 +56,7 @@ uv pip install -r requirements.txt
 
 uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
-▶️ Usage
+# ▶️ Usage
 Ingest papers
 python ingest.py --query "large language models in healthcare" --max_results 50
 
@@ -66,7 +66,7 @@ python query.py --question "What are recent applications of LLMs in healthcare?"
 Run full copilot (Streamlit UI)
 streamlit run app.py
 
-🧩 Evaluation
+# 🧩 Evaluation
 
 Toggle between RAGAS and TruLens in app.py to validate responses.
 
@@ -74,7 +74,7 @@ RAGAS → faithfulness, relevance, context precision.
 
 TruLens → groundedness, correctness, transparency.
 
-📚 Articles
+# 📚 Articles
 
 This project is documented in a 3-part blog series:
 
@@ -84,7 +84,7 @@ Agentic Workflow: Planner → Researcher → Writer → Critic
 
 Evaluation & Streamlit UI
 
-🛠️ Tech Stack
+# 🛠️ Tech Stack
 
 LangChain – Orchestration framework
 
@@ -96,7 +96,7 @@ Streamlit – Web UI
 
 RAGAS / TruLens – Evaluation
 
-🌱 Roadmap
+# 🌱 Roadmap
 
  Add PubMed & Semantic Scholar ingestion
 
@@ -106,12 +106,9 @@ RAGAS / TruLens – Evaluation
 
  Collaboration features (shareable reports)
 
-🤝 Contributing
+# 🤝 Contributing
 
 Contributions are welcome! Please open an issue or submit a PR.
 
-📄 License
-
-MIT License © 2025 [Your Name]
 
 ✨ This project is a work-in-progress experiment in agentic AI for research. Feedback and ideas are very welcome!

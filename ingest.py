@@ -5,21 +5,30 @@ import urllib.parse
 import requests
 from pathlib import Path
 
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain.schema import Document
 
+# ---- Config ----
 DATA_DIR = "data"
 DB_PATH = "./vector_store"
+os.makedirs(DATA_DIR, exist_ok=True)
 
-# --- Hash helpers ---
+# Initialize embeddings
+embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+
+
 def compute_text_hash(text: str) -> str:
     """Compute hash for a single chunk of text."""
     return hashlib.md5(text.encode("utf-8")).hexdigest()
 
+
 def compute_file_hash(file_path: str) -> str:
     """Compute hash for an entire file (PDF)."""
+    if not os.path.isfile(file_path):
+        raise ValueError(f"compute_file_hash expected a file, got directory: {file_path}")
     BUF_SIZE = 65536  # read in 64kb chunks
     md5 = hashlib.md5()
     with open(file_path, "rb") as f:
@@ -28,9 +37,10 @@ def compute_file_hash(file_path: str) -> str:
     return md5.hexdigest()
 
 
-# --- Search arXiv for relevant papers ---
+# --- arXiv Search ---
 def arxiv_search(query, max_results=5):
-    url = f"http://export.arxiv.org/api/query?search_query={query}&max_results={max_results}"
+    encoded_query = urllib.parse.quote(query)
+    url = f"http://export.arxiv.org/api/query?search_query={encoded_query}&max_results={max_results}"
     feed = feedparser.parse(url)
     results = []
     for entry in feed.entries:
@@ -47,35 +57,55 @@ def arxiv_search(query, max_results=5):
                 "authors": [a.name for a in entry.authors],
                 "published": entry.published
             })
-        else:
-            print(f"⚠️ PDF link not found for entry: {entry.title}")
     return results
 
 
-# --- Fetch and download PDFs locally ---
-def fetch_pdf(url, out_dir=DATA_DIR):
-    out_path = Path(out_dir)
-    out_path.mkdir(parents=True, exist_ok=True)
-    filename = out_path / (url.split("/")[-1] + ".pdf")
-    if filename.exists():
-        print(f"ℹ️ File already downloaded: {filename}")
-        return str(filename)
+def fetch_pdf(entry, topic: str):
+    """Download and save a PDF from arXiv entry if not already stored."""
+    pdf_url = entry.get("pdf_url")
+    if not pdf_url:
+        return None
 
-    r = requests.get(url)
-    r.raise_for_status()
-    filename.write_bytes(r.content)
-    return str(filename)
+    response = requests.get(pdf_url)
+    response.raise_for_status()
+
+    # Compute hash from content (not file path)
+    file_hash = hashlib.md5(response.content).hexdigest()
+    file_path = Path(DATA_DIR) / f"{file_hash}.pdf"
+
+    if not file_path.exists():
+        with open(file_path, "wb") as f:
+            f.write(response.content)
+
+    return str(file_path)
 
 
-# --- Parse and chunk text from PDFs ---
-def parse_and_chunk(file_path):
-    loader = PyPDFLoader(file_path)
-    documents = loader.load()
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=150
-    )
-    return text_splitter.split_documents(documents)
+def parse_and_chunk(file_path: str, topic: str):
+    """Load a single PDF and chunk into smaller sections."""
+    docs = []
+
+    path = Path(file_path)
+    if path.is_file():
+        files = [path]
+    else:
+        files = list(path.glob("*.pdf"))
+
+    for file in files:
+        loader = PyPDFLoader(str(file))
+        pdf_docs = loader.load()
+
+        # Add topic + source metadata
+        for d in pdf_docs:
+            d.metadata.update({
+                "source": str(file),
+                "topic": topic
+            })
+        docs.extend(pdf_docs)
+
+    # Split into chunks
+    splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    chunks = splitter.split_documents(docs)
+    return chunks
 
 
 # --- Store embeddings with deduplication ---
@@ -123,14 +153,22 @@ def store_embeddings(chunks, file_path=None, db_path=DB_PATH):
         print("ℹ️ No new chunks to add — already ingested.")
 
 
-# --- Main ingest function ---
-def ingest_topic(query, max_results=5):
-    clean_query = urllib.parse.quote_plus(query)
-    results = arxiv_search(clean_query, max_results=max_results)
+def ingest_topic(topic: str, max_results: int = 5):
+    """Search arXiv, fetch PDFs, parse + chunk, then embed."""
+    entries = arxiv_search(topic, max_results=max_results)
 
-    for paper in results:
-        pdf_path = fetch_pdf(paper["pdf_url"])
-        chunks = parse_and_chunk(pdf_path)
-        store_embeddings(chunks, file_path=pdf_path)
+    all_chunks = []
+    for entry in entries:
+        file_path = fetch_pdf(entry, topic)
+        if file_path:
+            chunks = parse_and_chunk(file_path, topic)
+            all_chunks.extend(chunks)
+            store_embeddings(chunks, file_path=file_path, db_path=DB_PATH)
 
-    print(f"📚 Ingested {len(results)} papers for topic: {query}")
+    print(f"📚 Ingested {len(all_chunks)} chunks for topic: {topic}")
+    return all_chunks
+
+
+if __name__ == "__main__":
+    topic = "neutron stars"
+    ingest_topic(topic, max_results=3)

@@ -22,23 +22,41 @@ def llm_call(prompt: str) -> str:
 # Planner Tool
 # -----------------------
 def planner_tool(user_query: str) -> list[str]:
-    """Break down research question into sub-questions."""
-    prompt = f"Break down this research question into 3-5 precise sub-questions:\n{user_query}"
+    """Break down a research question into 3 concise sub-questions."""
+    prompt = f"""
+You are a research planning assistant.
+
+Given the research question below, generate exactly 3 concise and relevant sub-questions.
+Each sub-question should help break down the main question into manageable parts.
+
+Format the output cleanly as:
+1. <sub-question 1>
+2. <sub-question 2>
+3. <sub-question 3>
+
+Avoid any introductions, explanations, or extra commentary.
+Return only the numbered sub-questions.
+
+Research Question: {user_query}
+"""
+
     response = llm_call(prompt)
 
-    # Parse into list
+    # Parse the numbered list into clean sub-questions
     sub_questions = [
         line.strip(" -1234567890. ")
         for line in response.split("\n")
-        if line.strip()
+        if line.strip() and any(c.isalpha() for c in line)
     ]
-    return sub_questions
+
+    # Ensure only top 3 sub-questions are returned
+    return sub_questions[:3]
 
 
 planner = Tool(
     name="Planner",
     func=planner_tool,
-    description="Decompose a research question into actionable sub-questions."
+    description="Decompose a research question into exactly 3 clear, concise sub-questions."
 )
 
 

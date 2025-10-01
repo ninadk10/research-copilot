@@ -76,8 +76,13 @@ def researcher_tool(sub_question: str) -> str:
     answer, sources = generate_answer(sub_question)
 
     # Format sources into short summary
-    source_text = "\n".join([doc.metadata.get("source", "Unknown") for doc in sources])
-    return f"{answer}\n\nSources:\n{source_text}"
+    source_text = "\n".join([
+    doc.get("metadata", {}).get("source", "Unknown")
+    if isinstance(doc, dict)
+    else doc.metadata.get("source", "Unknown")
+    for doc in sources
+    ])
+
 
 researcher = Tool(
     name="Researcher",

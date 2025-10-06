@@ -92,7 +92,7 @@ if st.button("Run Research Agent") and user_query.strip():
             st.write(answer)
             findings.append(answer)
 
-    compiled_findings = "\n\n".join(findings)
+    compiled_findings = "\n\n".join([str(f) for f in findings if f])
 
     # Step 3: Writer
     with st.expander("3️⃣ Writer: Draft Report"):

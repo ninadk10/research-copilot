@@ -1,4 +1,4 @@
-# agent_chain.py
+ingest_topic# agent_chain.py
 from langchain_community.llms import Ollama
 from langchain.agents import initialize_agent, AgentType
 from langchain.tools import Tool
@@ -63,25 +63,82 @@ planner = Tool(
 # -----------------------
 # Researcher Tool
 # -----------------------
+# Replace the old researcher_tool with this function in agent_pipeline.py
+
 def researcher_tool(sub_question: str) -> str:
     """
-    For each sub-question:
-      1. Ingest relevant papers (fetch + embed).
-      2. Query the vector store for an answer.
+    Run retrieval + QA for one sub-question and return a formatted string.
+    Robust to different return shapes from generate_answer (tuple/dict/string)
+    and to source docs being dicts or Document objects.
     """
-    # Step 1: Fetch and store relevant docs for this sub-question
-    ingest_topic(sub_question)
+    try:
+        # call the QA/retrieval function (imported as generate_answer)
+        result = generate_answer(sub_question)
 
-    # Step 2: Query the vector store for answers
-    answer, sources = generate_answer(sub_question)
+        # Normalize result into (answer, sources)
+        answer = None
+        sources = []
 
-    # Format sources into short summary
-    source_text = "\n".join([
-    doc.get("metadata", {}).get("source", "Unknown")
-    if isinstance(doc, dict)
-    else doc.metadata.get("source", "Unknown")
-    for doc in sources
-    ])
+        if result is None:
+            answer = None
+            sources = []
+        elif isinstance(result, tuple) or isinstance(result, list):
+            # common case: (answer, source_docs)
+            if len(result) >= 2:
+                answer, sources = result[0], result[1]
+            else:
+                answer = result[0] if result else None
+        elif isinstance(result, dict):
+            # some chains return dicts with keys like 'result' and 'source_documents'
+            answer = result.get("result") or result.get("answer") or result.get("output") or None
+            sources = result.get("source_documents") or result.get("source_docs") or result.get("source_documents", []) or []
+        else:
+            # string (rare)
+            answer = str(result)
+            sources = []
+
+        # If answer is empty/None, try to build a fallback from retrieved passages
+        if not answer or (isinstance(answer, str) and not answer.strip()):
+            snippets = []
+            for doc in (sources or []):
+                if isinstance(doc, dict):
+                    txt = doc.get("page_content") or doc.get("text") or ""
+                else:
+                    txt = getattr(doc, "page_content", None) or getattr(doc, "page", None) or ""
+                if txt:
+                    snippets.append(txt.strip())
+            if snippets:
+                # Use top 3 snippets as a fallback summary
+                answer = "(No direct LLM answer returned. Fallback assembled from retrieved passages.)\n\n" + "\n\n---\n\n".join(snippets[:3])
+            else:
+                answer = "No answer could be generated and no retrieved passages available."
+
+        # Build a compact sources list (unique)
+        src_names = []
+        for doc in (sources or []):
+            if isinstance(doc, dict):
+                meta = doc.get("metadata") or {}
+            else:
+                meta = getattr(doc, "metadata", {}) or {}
+            src = meta.get("source") or meta.get("file_name") or meta.get("url") or None
+            if src:
+                src_names.append(str(src))
+        # unique-preserve-order
+        seen = set()
+        unique_srcs = [x for x in src_names if not (x in seen or seen.add(x))]
+
+        # Build formatted output
+        formatted = answer.strip() if isinstance(answer, str) else str(answer)
+        if unique_srcs:
+            formatted += "\n\nSources:\n" + "\n".join(unique_srcs)
+
+        return formatted
+
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        # return readable error to UI (avoids returning None)
+        return f"Error in researcher_tool: {e}\n{tb}"
 
 
 researcher = Tool(

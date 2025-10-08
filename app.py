@@ -77,6 +77,20 @@ user_query = st.text_input("Enter your research question:")
 if st.button("Run Research Agent") and user_query.strip():
     st.info("Running the research pipeline...")
 
+    # 🔍 Step 0: Ingest topic automatically (if not already in vector store)
+    topic_hash_path = Path(DB_PATH) / f"{user_query.replace(' ', '_')}.lock"
+
+    if not topic_hash_path.exists():
+        st.write(f"🔄 Ingesting research papers for topic: **{user_query}** ...")
+        try:
+            ingest_topic(user_query, max_results=3)
+            topic_hash_path.touch()  # Mark topic as ingested
+            st.success("✅ Topic ingestion completed.")
+        except Exception as e:
+            st.warning(f"⚠️ Ingestion skipped due to error: {e}")
+    else:
+        st.info("✅ This topic has already been ingested — skipping re-ingestion.")
+
     # Step 1: Planner
     with st.expander("1️⃣ Planning: Sub-questions"):
         sub_questions = planner_tool(user_query)

@@ -83,14 +83,14 @@ if st.button("Run Research Agent") and user_query.strip():
     st.info("Running the research pipeline...")
 
     # 🔍 Step 0: Ingest topic automatically (if not already in vector store)
-    topic_hash_path = Path(DB_PATH) / f"{user_query.replace(' ', '_')}.lock"
-    safe_topic_hash_path = safe_filename(topic_hash_path)
+    safe_topic = safe_filename(user_query.replace(" ", "_"))
+    topic_hash_path = Path(DB_PATH) / f"{safe_topic}.lock"
 
-    if not safe_topic_hash_path.exists():
+    if not topic_hash_path.exists():
         st.write(f"🔄 Ingesting research papers for topic: **{user_query}** ...")
         try:
             ingest_topic(user_query, max_results=3)
-            safe_topic_hash_path.touch()  # Mark topic as ingested
+            topic_hash_path.touch()  # Mark topic as ingested
             st.success("✅ Topic ingestion completed.")
         except Exception as e:
             st.warning(f"⚠️ Ingestion skipped due to error: {e}")

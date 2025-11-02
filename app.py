@@ -126,17 +126,9 @@ if st.button("Run Research Agent") and user_query.strip():
 
     # ---- Evaluation Section ----
     st.header("3. Evaluate Answer")
-    eval_mode = st.selectbox(
-        "Choose Evaluation Method",
-        ["Manual Feedback Only", "RAGAS", "TruLens"],
-        index=0,
-    )
-
-    if eval_mode == "Manual Feedback Only":
-        feedback = st.radio("How useful was this answer?", ["Excellent", "Good", "Fair", "Poor"])
-
-    elif eval_mode == "RAGAS" and ragas_available:
-        st.write("Running RAGAS metrics...")
-        # In a full setup, context can be retrieved or passed separately
-        faith_score = faithfulness.run([], final_report)  # placeholder empty context
-        rel_sc_
+    st.write("Running RAGAS metrics...")
+    # In a full setup, context can be retrieved or passed separately
+    faith_score = faithfulness.run(compiled_findings, final_report)
+    relevance_score = answer_relevance.run(compiled_findings, final_report)
+    st.info(f"Faitfulness score: {faith_score}")
+    st.info(f"Relevance score: {relevance_score}")

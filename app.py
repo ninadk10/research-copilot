@@ -24,11 +24,23 @@ from agent_pipeline import (
 )
 
 # ---- Evaluation Libraries ----
+# ---- Evaluation Libraries ----
+ragas_available = False
+faithfulness = None
+answer_relevance = None
+
 try:
+    # Try latest version import
     from ragas.metrics import faithfulness, answer_relevance
     ragas_available = True
 except ImportError:
-    ragas_available = False
+    try:
+        # Try older version compatibility import
+        from ragas.metrics import faithfulness, relevance as answer_relevance
+        ragas_available = True
+    except ImportError:
+        st.warning("⚠️ RAGAS is installed but could not import metrics. Please check your RAGAS version.")
+
 
 try:
     from trulens_eval import Feedback
@@ -126,9 +138,20 @@ if st.button("Run Research Agent") and user_query.strip():
 
     # ---- Evaluation Section ----
     st.header("3. Evaluate Answer")
-    st.write("Running RAGAS metrics...")
-    # In a full setup, context can be retrieved or passed separately
-    faith_score = faithfulness.run(compiled_findings, final_report)
-    relevance_score = answer_relevance.run(compiled_findings, final_report)
-    st.info(f"Faitfulness score: {faith_score}")
-    st.info(f"Relevance score: {relevance_score}")
+
+    if not ragas_available:
+        st.warning("⚠️ RAGAS is not installed. Run `pip install ragas` to enable automatic evaluation.")
+    else:
+        st.write("Running RAGAS metrics...")
+        try:
+            # In a full setup, context can be retrieved or passed separately
+            faith_score = faithfulness.run([], {"response": final_report})
+            relevance_score = answer_relevance.run([], {"response": final_report})
+
+            st.success(f"✅ Faithfulness Score: {faith_score}")
+            st.success(f"✅ Relevance Score: {relevance_score}")
+        except Exception as e:
+            st.error(f"❌ Evaluation failed: {e}")
+
+    if not trulens_available:
+        st.info("ℹ️ TruLens evaluation is optional. Install with `pip install trulens-eval`.")

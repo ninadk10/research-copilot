@@ -1,6 +1,5 @@
 import streamlit as st
 from langchain_community.llms import Ollama
-from langchain_community.llms import Ollama
 import os
 from pathlib import Path
 from datetime import datetime
@@ -32,25 +31,14 @@ from agent_pipeline import (
 )
 
 
-
 # ---- Evaluation Libraries ----
 ragas_available = False
-faithfulness = None
-answer_relevance = None
-
 try:
-    from ragas import evaluate
-    from ragas.metrics import Faithfulness, AnswerRelevancy
-    st.info(f"✅ RAGAS successfully imported.")
     from ragas import evaluate
     from ragas.metrics import Faithfulness, AnswerRelevancy
     st.info(f"✅ RAGAS successfully imported.")
     ragas_available = True
 except ImportError:
-    st.warning("⚠️ RAGAS is not installed. Run `pip install ragas` to enable evaluation.")
-except Exception as e:
-    st.warning(f"⚠️ RAGAS is installed but could not import metrics. Error: {e}")
-
     st.warning("⚠️ RAGAS is not installed. Run `pip install ragas` to enable evaluation.")
 except Exception as e:
     st.warning(f"⚠️ RAGAS is installed but could not import metrics. Error: {e}")
@@ -233,10 +221,3 @@ try:
 except Exception as e:
     st.warning(f"⚠️ Keyword overlap evaluation failed: {e}")
 
-            st.success(f"✅ Faithfulness Score: {faith_score}")
-            st.success(f"✅ Relevance Score: {relevance_score}")
-        except Exception as e:
-            st.error(f"❌ Evaluation failed: {e}")
-
-    if not trulens_available:
-        st.info("ℹ️ TruLens evaluation is optional. Install with `pip install trulens-eval`.")

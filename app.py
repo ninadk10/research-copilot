@@ -6,9 +6,6 @@ from datetime import datetime
 import pandas as pd
 import re
 from langchain.chat_models import ChatOpenAI
-from ragas.metrics import Faithfulness, AnswerRelevancy
-from ragas import evaluate
-from ragas.dataset import Dataset
 import textstat
 
 

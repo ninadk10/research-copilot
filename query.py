@@ -14,10 +14,7 @@ embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 def create_retriever():
     """Load persisted ChromaDB and return a retriever."""
-    vectordb = Chroma(
-        persist_directory=DB_PATH,
-        embedding_function=embeddings
-    )
+    vectordb = Chroma(persist_directory=DB_PATH, embedding_function=embeddings)
     return vectordb.as_retriever(search_kwargs={"k": 4})
 
 
@@ -43,8 +40,7 @@ def generate_answer(query: str):
     """
 
     PROMPT = PromptTemplate(
-        template=prompt_template,
-        input_variables=["question", "context"]
+        template=prompt_template, input_variables=["question", "context"]
     )
 
     qa_chain = RetrievalQA.from_chain_type(
@@ -52,7 +48,7 @@ def generate_answer(query: str):
         retriever=retriever,
         chain_type="stuff",
         chain_type_kwargs={"prompt": PROMPT},
-        return_source_documents=True
+        return_source_documents=True,
     )
 
     result = qa_chain({"query": query})
@@ -64,11 +60,13 @@ def generate_answer(query: str):
     sources = []
     for doc in source_docs:
         metadata = doc.metadata
-        sources.append({
-            "source": metadata.get("source", "Unknown"),
-            "topic": metadata.get("topic", "Unknown"),
-            "snippet": doc.page_content[:200] + "..."  # preview
-        })
+        sources.append(
+            {
+                "source": metadata.get("source", "Unknown"),
+                "topic": metadata.get("topic", "Unknown"),
+                "snippet": doc.page_content[:200] + "...",  # preview
+            }
+        )
 
     return answer, sources
 

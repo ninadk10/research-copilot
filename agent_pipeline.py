@@ -56,7 +56,7 @@ Research Question: {user_query}
 planner = Tool(
     name="Planner",
     func=planner_tool,
-    description="Decompose a research question into exactly 3 clear, concise sub-questions."
+    description="Decompose a research question into exactly 3 clear, concise sub-questions.",
 )
 
 
@@ -64,6 +64,7 @@ planner = Tool(
 # Researcher Tool
 # -----------------------
 # Replace the old researcher_tool with this function in agent_pipeline.py
+
 
 def researcher_tool(sub_question: str) -> str:
     """
@@ -90,8 +91,18 @@ def researcher_tool(sub_question: str) -> str:
                 answer = result[0] if result else None
         elif isinstance(result, dict):
             # some chains return dicts with keys like 'result' and 'source_documents'
-            answer = result.get("result") or result.get("answer") or result.get("output") or None
-            sources = result.get("source_documents") or result.get("source_docs") or result.get("source_documents", []) or []
+            answer = (
+                result.get("result")
+                or result.get("answer")
+                or result.get("output")
+                or None
+            )
+            sources = (
+                result.get("source_documents")
+                or result.get("source_docs")
+                or result.get("source_documents", [])
+                or []
+            )
         else:
             # string (rare)
             answer = str(result)
@@ -100,22 +111,31 @@ def researcher_tool(sub_question: str) -> str:
         # If answer is empty/None, try to build a fallback from retrieved passages
         if not answer or (isinstance(answer, str) and not answer.strip()):
             snippets = []
-            for doc in (sources or []):
+            for doc in sources or []:
                 if isinstance(doc, dict):
                     txt = doc.get("page_content") or doc.get("text") or ""
                 else:
-                    txt = getattr(doc, "page_content", None) or getattr(doc, "page", None) or ""
+                    txt = (
+                        getattr(doc, "page_content", None)
+                        or getattr(doc, "page", None)
+                        or ""
+                    )
                 if txt:
                     snippets.append(txt.strip())
             if snippets:
                 # Use top 3 snippets as a fallback summary
-                answer = "(No direct LLM answer returned. Fallback assembled from retrieved passages.)\n\n" + "\n\n---\n\n".join(snippets[:3])
+                answer = (
+                    "(No direct LLM answer returned. Fallback assembled from retrieved passages.)\n\n"
+                    + "\n\n---\n\n".join(snippets[:3])
+                )
             else:
-                answer = "No answer could be generated and no retrieved passages available."
+                answer = (
+                    "No answer could be generated and no retrieved passages available."
+                )
 
         # Build a compact sources list (unique)
         src_names = []
-        for doc in (sources or []):
+        for doc in sources or []:
             if isinstance(doc, dict):
                 meta = doc.get("metadata") or {}
             else:
@@ -136,6 +156,7 @@ def researcher_tool(sub_question: str) -> str:
 
     except Exception as e:
         import traceback
+
         tb = traceback.format_exc()
         # return readable error to UI (avoids returning None)
         return f"Error in researcher_tool: {e}\n{tb}"
@@ -144,7 +165,7 @@ def researcher_tool(sub_question: str) -> str:
 researcher = Tool(
     name="Researcher",
     func=researcher_tool,
-    description="Use this tool to research sub-questions. It will fetch papers, embed them, and answer queries."
+    description="Use this tool to research sub-questions. It will fetch papers, embed them, and answer queries.",
 )
 
 
@@ -159,7 +180,7 @@ def writer_tool(research_results: str) -> str:
 writer = Tool(
     name="Writer",
     func=writer_tool,
-    description="Synthesize research results into a coherent report."
+    description="Synthesize research results into a coherent report.",
 )
 
 
@@ -172,9 +193,7 @@ def critic_tool(draft_report: str) -> str:
 
 
 critic = Tool(
-    name="Critic",
-    func=critic_tool,
-    description="Review and improve research reports."
+    name="Critic", func=critic_tool, description="Review and improve research reports."
 )
 
 
@@ -187,7 +206,7 @@ agent = initialize_agent(
     tools=tools,
     llm=llm,
     agent=AgentType.STRUCTURED_CHAT_ZERO_SHOT_REACT_DESCRIPTION,
-    verbose=True
+    verbose=True,
 )
 
 

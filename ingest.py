@@ -28,7 +28,9 @@ def compute_text_hash(text: str) -> str:
 def compute_file_hash(file_path: str) -> str:
     """Compute hash for an entire file (PDF)."""
     if not os.path.isfile(file_path):
-        raise ValueError(f"compute_file_hash expected a file, got directory: {file_path}")
+        raise ValueError(
+            f"compute_file_hash expected a file, got directory: {file_path}"
+        )
     BUF_SIZE = 65536  # read in 64kb chunks
     md5 = hashlib.md5()
     with open(file_path, "rb") as f:
@@ -50,13 +52,15 @@ def arxiv_search(query, max_results=5):
                 pdf_url = link.href
                 break
         if pdf_url:
-            results.append({
-                "title": entry.title,
-                "summary": entry.summary,
-                "pdf_url": pdf_url,
-                "authors": [a.name for a in entry.authors],
-                "published": entry.published
-            })
+            results.append(
+                {
+                    "title": entry.title,
+                    "summary": entry.summary,
+                    "pdf_url": pdf_url,
+                    "authors": [a.name for a in entry.authors],
+                    "published": entry.published,
+                }
+            )
     return results
 
 
@@ -96,10 +100,7 @@ def parse_and_chunk(file_path: str, topic: str):
 
         # Add topic + source metadata
         for d in pdf_docs:
-            d.metadata.update({
-                "source": str(file),
-                "topic": topic
-            })
+            d.metadata.update({"source": str(file), "topic": topic})
         docs.extend(pdf_docs)
 
     # Split into chunks
@@ -111,10 +112,7 @@ def parse_and_chunk(file_path: str, topic: str):
 # --- Store embeddings with deduplication ---
 def store_embeddings(chunks, file_path=None, db_path=DB_PATH):
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    vectorstore = Chroma(
-        persist_directory=db_path,
-        embedding_function=embeddings
-    )
+    vectorstore = Chroma(persist_directory=db_path, embedding_function=embeddings)
 
     # Collect existing hashes
     existing_docs = vectorstore.get(include=["metadatas"])

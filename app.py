@@ -9,7 +9,6 @@ from langchain.chat_models import ChatOpenAI
 import textstat
 
 
-
 from ingest import (
     arxiv_search,
     fetch_pdf,
@@ -33,17 +32,20 @@ ragas_available = False
 try:
     from ragas import evaluate
     from ragas.metrics import Faithfulness, AnswerRelevancy
+
     st.info(f"✅ RAGAS successfully imported.")
     ragas_available = True
 except ImportError:
-    st.warning("⚠️ RAGAS is not installed. Run `pip install ragas` to enable evaluation.")
+    st.warning(
+        "⚠️ RAGAS is not installed. Run `pip install ragas` to enable evaluation."
+    )
 except Exception as e:
     st.warning(f"⚠️ RAGAS is installed but could not import metrics. Error: {e}")
 
 
-
 try:
     from trulens_eval import Feedback
+
     trulens_available = True
 except ImportError:
     trulens_available = False
@@ -56,7 +58,9 @@ st.title("📄 Research Copilot (LangChain Agent)")
 
 # ---- Document Upload Section ----
 st.header("1. Upload Documents (optional)")
-uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_files=True)
+uploaded_files = st.file_uploader(
+    "Upload PDFs", type=["pdf"], accept_multiple_files=True
+)
 
 if uploaded_files:
     os.makedirs(DATA_DIR, exist_ok=True)
@@ -83,9 +87,11 @@ if uploaded_files:
 
         st.success("Documents processed and stored with deduplication.")
 
+
 def safe_filename(name: str) -> str:
     """Sanitize string for safe filesystem usage."""
     return re.sub(r'[\\/*?:"<>|]', "_", name)
+
 
 # ---- Query Section ----
 st.header("2. Ask a Question")
@@ -136,7 +142,6 @@ if st.button("Run Research Agent") and user_query.strip():
         final_report = critic_tool(draft_report)
         st.success(final_report)
 
-
     # ---- Evaluation Section ----
     st.header("3. Evaluate Answer")
 
@@ -145,8 +150,6 @@ if st.button("Run Research Agent") and user_query.strip():
     import numpy as np
     from collections import Counter
     from langchain_community.llms import Ollama
-
-
 
     llm = Ollama(model="llama3.2", temperature=0.2)
 
@@ -157,13 +160,13 @@ if st.button("Run Research Agent") and user_query.strip():
         "Factual accuracy",
         "Clarity and coherence",
         "Relevance to the question",
-        "Coverage (completeness)"
+        "Coverage (completeness)",
     ]
 
     eval_prompt = f"""
     You are an expert evaluator.
     Evaluate the following research report on a scale of 1–10 for each of these criteria:
-    {', '.join(criteria)}.
+    {", ".join(criteria)}.
 
     Question: {user_query}
     Answer: {final_report}
@@ -178,7 +181,6 @@ if st.button("Run Research Agent") and user_query.strip():
     except Exception as e:
         st.warning(f"❌ LLM evaluation failed: {e}")
 
-
     # 🔢 2️⃣ Embedding-Based Semantic Similarity
     st.subheader("🧩 Embedding-Based Semantic Similarity")
 
@@ -191,7 +193,6 @@ if st.button("Run Research Agent") and user_query.strip():
     except Exception as e:
         st.warning(f"⚠️ Semantic similarity evaluation failed: {e}")
 
-
     # 📖 3️⃣ Readability Metrics
     st.subheader("📚 Readability Metrics")
 
@@ -203,18 +204,18 @@ if st.button("Run Research Agent") and user_query.strip():
     except Exception as e:
         st.warning(f"⚠️ Readability evaluation failed: {e}")
 
-
     # 🔤 4️⃣ Keyword Overlap
     st.subheader("🔡 Keyword Overlap Metric")
 
     def keyword_overlap(a, b):
         words_a = set(a.lower().split())
         words_b = set(b.lower().split())
-        return len(words_a & words_b) / len(words_a | words_b) if words_a | words_b else 0
+        return (
+            len(words_a & words_b) / len(words_a | words_b) if words_a | words_b else 0
+        )
 
     try:
         overlap = keyword_overlap(compiled_findings, final_report)
         st.info(f"Keyword overlap: {overlap:.3f}")
     except Exception as e:
         st.warning(f"⚠️ Keyword overlap evaluation failed: {e}")
-

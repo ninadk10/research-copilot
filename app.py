@@ -137,84 +137,84 @@ if st.button("Run Research Agent") and user_query.strip():
         st.success(final_report)
 
 
-# ---- Evaluation Section ----
-st.header("3. Evaluate Answer")
+    # ---- Evaluation Section ----
+    st.header("3. Evaluate Answer")
 
-from langchain_community.embeddings import OllamaEmbeddings
-from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
-from collections import Counter
-from langchain_community.llms import Ollama
-
-
-
-llm = Ollama(model="llama3.2", temperature=0.2)
-
-# 🧠 1️⃣ LLM Self-Evaluation (Faithfulness / Relevance / Clarity / Coverage)
-st.subheader("🔍 LLM Self-Evaluation")
-
-criteria = [
-    "Factual accuracy",
-    "Clarity and coherence",
-    "Relevance to the question",
-    "Coverage (completeness)"
-]
-
-eval_prompt = f"""
-You are an expert evaluator.
-Evaluate the following research report on a scale of 1–10 for each of these criteria:
-{', '.join(criteria)}.
-
-Question: {user_query}
-Answer: {final_report}
-
-Respond in strict JSON format:
-{{"Factual accuracy": <score>, "Clarity and coherence": <score>, "Relevance": <score>, "Coverage": <score>}}
-"""
-
-try:
-    llm_response = llm.invoke(eval_prompt)
-    st.json(llm_response)
-except Exception as e:
-    st.warning(f"❌ LLM evaluation failed: {e}")
+    from langchain_community.embeddings import OllamaEmbeddings
+    from sklearn.metrics.pairwise import cosine_similarity
+    import numpy as np
+    from collections import Counter
+    from langchain_community.llms import Ollama
 
 
-# 🔢 2️⃣ Embedding-Based Semantic Similarity
-st.subheader("🧩 Embedding-Based Semantic Similarity")
 
-try:
-    embedder = OllamaEmbeddings(model="llama3.2")
-    context_emb = np.mean(embedder.embed_documents([compiled_findings]), axis=0)
-    answer_emb = embedder.embed_query(final_report)
-    similarity = cosine_similarity([context_emb], [answer_emb])[0][0]
-    st.info(f"Semantic similarity score: {similarity:.3f}")
-except Exception as e:
-    st.warning(f"⚠️ Semantic similarity evaluation failed: {e}")
+    llm = Ollama(model="llama3.2", temperature=0.2)
+
+    # 🧠 1️⃣ LLM Self-Evaluation (Faithfulness / Relevance / Clarity / Coverage)
+    st.subheader("🔍 LLM Self-Evaluation")
+
+    criteria = [
+        "Factual accuracy",
+        "Clarity and coherence",
+        "Relevance to the question",
+        "Coverage (completeness)"
+    ]
+
+    eval_prompt = f"""
+    You are an expert evaluator.
+    Evaluate the following research report on a scale of 1–10 for each of these criteria:
+    {', '.join(criteria)}.
+
+    Question: {user_query}
+    Answer: {final_report}
+
+    Respond in strict JSON format:
+    {{"Factual accuracy": <score>, "Clarity and coherence": <score>, "Relevance": <score>, "Coverage": <score>}}
+    """
+
+    try:
+        llm_response = llm.invoke(eval_prompt)
+        st.json(llm_response)
+    except Exception as e:
+        st.warning(f"❌ LLM evaluation failed: {e}")
 
 
-# 📖 3️⃣ Readability Metrics
-st.subheader("📚 Readability Metrics")
+    # 🔢 2️⃣ Embedding-Based Semantic Similarity
+    st.subheader("🧩 Embedding-Based Semantic Similarity")
 
-try:
-    readability = textstat.flesch_reading_ease(final_report)
-    grade_level = textstat.flesch_kincaid_grade(final_report)
-    st.info(f"Flesch Reading Ease: {readability:.2f}")
-    st.info(f"Flesch-Kincaid Grade Level: {grade_level:.2f}")
-except Exception as e:
-    st.warning(f"⚠️ Readability evaluation failed: {e}")
+    try:
+        embedder = OllamaEmbeddings(model="llama3.2")
+        context_emb = np.mean(embedder.embed_documents([compiled_findings]), axis=0)
+        answer_emb = embedder.embed_query(final_report)
+        similarity = cosine_similarity([context_emb], [answer_emb])[0][0]
+        st.info(f"Semantic similarity score: {similarity:.3f}")
+    except Exception as e:
+        st.warning(f"⚠️ Semantic similarity evaluation failed: {e}")
 
 
-# 🔤 4️⃣ Keyword Overlap
-st.subheader("🔡 Keyword Overlap Metric")
+    # 📖 3️⃣ Readability Metrics
+    st.subheader("📚 Readability Metrics")
 
-def keyword_overlap(a, b):
-    words_a = set(a.lower().split())
-    words_b = set(b.lower().split())
-    return len(words_a & words_b) / len(words_a | words_b) if words_a | words_b else 0
+    try:
+        readability = textstat.flesch_reading_ease(final_report)
+        grade_level = textstat.flesch_kincaid_grade(final_report)
+        st.info(f"Flesch Reading Ease: {readability:.2f}")
+        st.info(f"Flesch-Kincaid Grade Level: {grade_level:.2f}")
+    except Exception as e:
+        st.warning(f"⚠️ Readability evaluation failed: {e}")
 
-try:
-    overlap = keyword_overlap(compiled_findings, final_report)
-    st.info(f"Keyword overlap: {overlap:.3f}")
-except Exception as e:
-    st.warning(f"⚠️ Keyword overlap evaluation failed: {e}")
+
+    # 🔤 4️⃣ Keyword Overlap
+    st.subheader("🔡 Keyword Overlap Metric")
+
+    def keyword_overlap(a, b):
+        words_a = set(a.lower().split())
+        words_b = set(b.lower().split())
+        return len(words_a & words_b) / len(words_a | words_b) if words_a | words_b else 0
+
+    try:
+        overlap = keyword_overlap(compiled_findings, final_report)
+        st.info(f"Keyword overlap: {overlap:.3f}")
+    except Exception as e:
+        st.warning(f"⚠️ Keyword overlap evaluation failed: {e}")
 

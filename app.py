@@ -27,29 +27,6 @@ from agent_pipeline import (
 )
 
 
-# ---- Evaluation Libraries ----
-ragas_available = False
-try:
-    from ragas import evaluate
-    from ragas.metrics import Faithfulness, AnswerRelevancy
-
-    st.info(f"✅ RAGAS successfully imported.")
-    ragas_available = True
-except ImportError:
-    st.warning(
-        "⚠️ RAGAS is not installed. Run `pip install ragas` to enable evaluation."
-    )
-except Exception as e:
-    st.warning(f"⚠️ RAGAS is installed but could not import metrics. Error: {e}")
-
-
-try:
-    from trulens_eval import Feedback
-
-    trulens_available = True
-except ImportError:
-    trulens_available = False
-
 DB_PATH = "./vector_store"
 DATA_DIR = "data"
 
@@ -100,6 +77,9 @@ user_query = st.text_input("Enter your research question:")
 if st.button("Run Research Agent") and user_query.strip():
     st.info("Running the research pipeline...")
 
+    progress = st.progress(0)
+    status = st.empty()
+
     # 🔍 Step 0: Ingest topic automatically (if not already in vector store)
     safe_topic = safe_filename(user_query.replace(" ", "_"))
     topic_hash_path = Path(DB_PATH) / f"{safe_topic}.lock"
@@ -115,32 +95,80 @@ if st.button("Run Research Agent") and user_query.strip():
     else:
         st.info("✅ This topic has already been ingested — skipping re-ingestion.")
 
+    progress.progress(20)
+
     # Step 1: Planner
     with st.expander("1️⃣ Planning: Sub-questions"):
         sub_questions = planner_tool(user_query)
         for i, q in enumerate(sub_questions, 1):
             st.write(f"{i}. {q}")
+    progress.progress(30)
 
     # Step 2: Researcher
     findings = []
+    all_sources = []
+
     with st.expander("2️⃣ Researcher: Findings per Sub-question"):
         for q in sub_questions:
             st.write(f"**Q:** {q}")
-            answer = researcher_tool(q)
-            st.write(answer)
-            findings.append(answer)
 
+            result_text = researcher_tool(q)
+
+            # Default values
+            answer_only = result_text
+            parsed_sources = []
+
+            # ---------------------------------
+            # Extract "Sources:" block if present
+            # ---------------------------------
+            if "Sources:" in result_text:
+                answer_part, sources_part = result_text.split("Sources:", 1)
+
+                answer_only = answer_part.strip()
+
+                parsed_sources = [
+                    line.strip("• ").strip()
+                    for line in sources_part.strip().split("\n")
+                    if line.strip()
+                ]
+
+                # accumulate global list
+                all_sources.extend(parsed_sources)
+
+            # ---------------------------------
+            # Display answer
+            # ---------------------------------
+            st.write(answer_only)
+            findings.append(answer_only)
+
+            # ---------------------------------
+            # Display sources (if any)
+            # ---------------------------------
+            if parsed_sources:
+                st.markdown("**Sources:**")
+                for src in parsed_sources:
+                    # clickable if URL or arxiv
+                    if src.startswith("http") or "arxiv" in src.lower():
+                        st.markdown(f"- [{src}]({src})")
+                    else:
+                        st.markdown(f"- {src}")
+
+    # Compile findings for writer
     compiled_findings = "\n\n".join([str(f) for f in findings if f])
+    progress.progress(40)
+
 
     # Step 3: Writer
     with st.expander("3️⃣ Writer: Draft Report"):
         draft_report = writer_tool(compiled_findings)
         st.write(draft_report)
+    progress.progress(60)
 
     # Step 4: Critic
     with st.expander("4️⃣ Critic: Final Report"):
         final_report = critic_tool(draft_report)
         st.success(final_report)
+    progress.progress(80)
 
     # ---- Evaluation Section ----
     st.header("3. Evaluate Answer")
@@ -219,3 +247,27 @@ if st.button("Run Research Agent") and user_query.strip():
         st.info(f"Keyword overlap: {overlap:.3f}")
     except Exception as e:
         st.warning(f"⚠️ Keyword overlap evaluation failed: {e}")
+    
+    progress.progress(100)
+    st.success("Research pipeline completed!")
+
+
+    with st.expander("📚 Sources Used"):
+    if all_sources:
+        st.write("### Documents referenced:")
+
+        # Deduplicate sources
+        seen = set()
+        for src in all_sources:
+            ref = src.get("source") or src.get("file_path") or src.get("title")
+            if ref and ref not in seen:
+                seen.add(ref)
+
+                # Format clickable arXiv links
+                if "arxiv" in ref.lower():
+                    st.markdown(f"- [{ref}]({ref})")
+                else:
+                    st.markdown(f"- {ref}")
+    else:
+        st.write("No sources collected.")
+

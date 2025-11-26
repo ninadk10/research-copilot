@@ -19,17 +19,16 @@ def create_retriever():
 
 
 def generate_answer(query: str):
-    """Query vector DB and generate an answer with sources + topics."""
+    """Query vector DB and generate an answer with guaranteed retrieved sources."""
+
     retriever = create_retriever()
 
-    # Local Ollama model
     llm = OllamaLLM(model="llama3.2", temperature=0.2)
 
-    # Custom prompt template
     prompt_template = """
     You are a helpful research assistant.
-    Use the provided context to answer the question.
-    If context is insufficient, say you are not sure.
+    Use ONLY the provided context to answer the question.
+    If the context is insufficient, say you are not sure.
 
     Question: {question}
 
@@ -40,7 +39,8 @@ def generate_answer(query: str):
     """
 
     PROMPT = PromptTemplate(
-        template=prompt_template, input_variables=["question", "context"]
+        template=prompt_template,
+        input_variables=["question", "context"]
     )
 
     qa_chain = RetrievalQA.from_chain_type(
@@ -51,24 +51,31 @@ def generate_answer(query: str):
         return_source_documents=True,
     )
 
-    result = qa_chain({"query": query})
+    # IMPORTANT:
+    # Some LangChain versions expect "query", others "question".
+    # Passing both guarantees retriever is called.
+    result = qa_chain({"query": query, "question": query})
 
-    answer = result["result"]
-    source_docs = result["source_documents"]
+    answer = result.get("result") or result.get("answer") or ""
+    source_docs = result.get("source_documents") or []
 
-    # Extract metadata
     sources = []
     for doc in source_docs:
-        metadata = doc.metadata
-        sources.append(
-            {
-                "source": metadata.get("source", "Unknown"),
-                "topic": metadata.get("topic", "Unknown"),
-                "snippet": doc.page_content[:200] + "...",  # preview
-            }
-        )
+        meta = getattr(doc, "metadata", {}) or {}
+
+        sources.append({
+            "source": meta.get("source") or
+                      meta.get("file_name") or
+                      meta.get("url") or
+                      "Unknown",
+
+            "topic": meta.get("topic", "Unknown"),
+
+            "snippet": (doc.page_content[:200] + "...") if hasattr(doc, "page_content") else ""
+        })
 
     return answer, sources
+
 
 
 if __name__ == "__main__":

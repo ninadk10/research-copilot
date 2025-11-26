@@ -67,104 +67,98 @@ planner = Tool(
 
 def researcher_tool(sub_question: str):
     """
-    Run retrieval + QA for one sub-question and return:
-      - formatted string answer (same as before)
-      - list of unique sources extracted from retrieved documents
+    Retrieval + QA for one sub-question.
+    Returns (answer_text, unique_source_list)
+    Always returns a source list, even if empty.
     """
+
     try:
-        result = generate_answer(sub_question)
+        raw = generate_answer(sub_question)
 
-        # ---- Normalize result into (answer, sources) ----
+        # ------------------------------------
+        # Normalize results into (answer, docs)
+        # ------------------------------------
         answer = None
-        sources = []
+        source_docs = []
 
-        if result is None:
-            answer = None
-            sources = []
-
-        elif isinstance(result, (tuple, list)):
-            if len(result) >= 2:
-                answer, sources = result[0], result[1]
+        # Case 1: tuple or list -> (answer, docs)
+        if isinstance(raw, (tuple, list)):
+            if len(raw) >= 2:
+                answer, source_docs = raw[0], raw[1]
             else:
-                answer = result[0] if result else None
+                answer = raw[0]
 
-        elif isinstance(result, dict):
-            answer = (
-                result.get("result")
-                or result.get("answer")
-                or result.get("output")
-                or None
-            )
-            sources = (
-                result.get("source_documents")
-                or result.get("source_docs")
-                or []
-            )
+        # Case 2: dict -> typical LangChain format
+        elif isinstance(raw, dict):
+            answer = raw.get("result") or raw.get("answer") or raw.get("output")
+            source_docs = raw.get("source_documents") or raw.get("source_docs") or []
 
+        # Case 3: plain string
         else:
-            # string case
-            answer = str(result)
-            sources = []
+            answer = str(raw)
 
-        # ---- Build fallback answer if empty ----
-        if not answer or not str(answer).strip():
-            snippets = []
-            for doc in sources or []:
-                if isinstance(doc, dict):
-                    txt = doc.get("page_content") or doc.get("text") or ""
-                else:
-                    txt = (
-                        getattr(doc, "page_content", None)
-                        or getattr(doc, "page", None)
-                        or ""
-                    )
-                if txt:
-                    snippets.append(txt.strip())
+        # ------------------------------------
+        # Extract answer fallback
+        # ------------------------------------
+        if not answer:
+            answer = "No generated answer."
 
-            if snippets:
-                answer = (
-                    "(No direct LLM answer returned. Fallback assembled from retrieved passages.)\n\n"
-                    + "\n\n---\n\n".join(snippets[:3])
-                )
-            else:
-                answer = "No answer could be generated and no retrieved passages available."
+        # ------------------------------------
+        # Extract metadata from source documents
+        # ------------------------------------
+        extracted_sources = []
 
-        # ---- Build compact, unique source list ----
-        src_names = []
-        for doc in sources or []:
+        for doc in source_docs:
+            meta = {}
+
             if isinstance(doc, dict):
-                meta = doc.get("metadata") or {}
+                meta = doc.get("metadata", {})
             else:
                 meta = getattr(doc, "metadata", {}) or {}
 
-            src = (
-                meta.get("source")
-                or meta.get("file_name")
-                or meta.get("url")
-                or meta.get("title")
-            )
+            # MOST COMMON METADATA KEYS ACROSS LANGCHAIN + CHROMA
+            possible_keys = [
+                "source",
+                "file_path",
+                "file_name",
+                "title",
+                "url",
+                "link",
+                "pdf_file",
+                "arxiv_id",
+                "document_id",
+            ]
 
-            if src:
-                src_names.append(str(src))
+            src_val = None
+            for key in possible_keys:
+                if key in meta and meta[key]:
+                    src_val = str(meta[key])
+                    break
 
-        # unique preserve order
-        seen = set()
-        unique_srcs = [s for s in src_names if not (s in seen or seen.add(s))]
+            # Last resort: look for any URL-ish value
+            if not src_val:
+                for k, v in meta.items():
+                    if isinstance(v, str) and ("http" in v or "arxiv" in v.lower()):
+                        src_val = v
+                        break
 
-        # ---- Build formatted output (unchanged) ----
+            if src_val:
+                extracted_sources.append(src_val)
+
+        # Deduplicate
+        dedup_sources = list(dict.fromkeys(extracted_sources))
+
+        # ------------------------------------
+        # Final output
+        # ------------------------------------
         formatted = answer.strip() if isinstance(answer, str) else str(answer)
-        if unique_srcs:
-            formatted += "\n\nSources:\n" + "\n".join(unique_srcs)
 
-        # 🔥 NEW: return formatted answer AND the source list
-        return formatted, unique_srcs
+        return formatted, dedup_sources
 
     except Exception as e:
         import traceback
-        tb = traceback.format_exc()
+        return f"Error in researcher_tool: {e}\n\n{traceback.format_exc()}", []
 
-        # Still return a single string if an error happens (safe for UI)
-        return f"Error in researcher_tool: {e}\n{tb}", []
 
 
 researcher = Tool(

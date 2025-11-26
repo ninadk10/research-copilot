@@ -104,7 +104,11 @@ if st.button("Run Research Agent") and user_query.strip():
             st.write(f"{i}. {q}")
     progress.progress(30)
 
+   
+  # Step 2: Researcher
+
     # Step 2: Researcher
+
     findings = []
     all_sources = []
 
@@ -112,159 +116,138 @@ if st.button("Run Research Agent") and user_query.strip():
         for q in sub_questions:
             st.write(f"**Q:** {q}")
 
-            result_text = researcher_tool(q)
+            answer_text, src_list = researcher_tool(q)
 
-            # Default values
-            answer_only = result_text
-            parsed_sources = []
+            # display answer
+            st.write(answer_text)
+            st.write(src_list)
+            findings.append(answer_text)
 
-            # ---------------------------------
-            # Extract "Sources:" block if present
-            # ---------------------------------
-            if "Sources:" in result_text:
-                answer_part, sources_part = result_text.split("Sources:", 1)
-
-                answer_only = answer_part.strip()
-
-                parsed_sources = [
-                    line.strip("• ").strip()
-                    for line in sources_part.strip().split("\n")
-                    if line.strip()
-                ]
-
-                # accumulate global list
-                all_sources.extend(parsed_sources)
-
-            # ---------------------------------
-            # Display answer
-            # ---------------------------------
-            st.write(answer_only)
-            findings.append(answer_only)
-
-            # ---------------------------------
-            # Display sources (if any)
-            # ---------------------------------
-            if parsed_sources:
+            # display sources
+            if src_list:
                 st.markdown("**Sources:**")
-                for src in parsed_sources:
-                    # clickable if URL or arxiv
+                for src in src_list:
                     if src.startswith("http") or "arxiv" in src.lower():
                         st.markdown(f"- [{src}]({src})")
                     else:
                         st.markdown(f"- {src}")
 
-    # Compile findings for writer
-    compiled_findings = "\n\n".join([str(f) for f in findings if f])
+            # accumulate
+            all_sources.extend(src_list)
+
+    compiled_findings = "\n\n".join(f for f in findings)
     progress.progress(40)
 
-    # Step 3: Writer
-    with st.expander("3️⃣ Writer: Draft Report"):
-        draft_report = writer_tool(compiled_findings)
-        st.write(draft_report)
-    progress.progress(60)
 
-    # Step 4: Critic
-    with st.expander("4️⃣ Critic: Final Report"):
-        final_report = critic_tool(draft_report)
-        st.success(final_report)
-    progress.progress(80)
 
-    # ---- Evaluation Section ----
-    st.header("3. Evaluate Answer")
+    # # Step 3: Writer
+    # with st.expander("3️⃣ Writer: Draft Report"):
+    #     draft_report = writer_tool(compiled_findings)
+    #     st.write(draft_report)
+    # progress.progress(60)
 
-    from langchain_community.embeddings import OllamaEmbeddings
-    from sklearn.metrics.pairwise import cosine_similarity
-    import numpy as np
-    from collections import Counter
-    from langchain_community.llms import Ollama
+    # # Step 4: Critic
+    # with st.expander("4️⃣ Critic: Final Report"):
+    #     final_report = critic_tool(draft_report)
+    #     st.success(final_report)
+    # progress.progress(80)
 
-    llm = Ollama(model="llama3.2", temperature=0.2)
+    # # ---- Evaluation Section ----
+    # st.header("3. Evaluate Answer")
 
-    # 🧠 1️⃣ LLM Self-Evaluation (Faithfulness / Relevance / Clarity / Coverage)
-    st.subheader("🔍 LLM Self-Evaluation")
+    # from langchain_community.embeddings import OllamaEmbeddings
+    # from sklearn.metrics.pairwise import cosine_similarity
+    # import numpy as np
+    # from collections import Counter
+    # from langchain_community.llms import Ollama
 
-    criteria = [
-        "Factual accuracy",
-        "Clarity and coherence",
-        "Relevance to the question",
-        "Coverage (completeness)",
-    ]
+    # llm = Ollama(model="llama3.2", temperature=0.2)
 
-    eval_prompt = f"""
-    You are an expert evaluator.
-    Evaluate the following research report on a scale of 1–10 for each of these criteria:
-    {", ".join(criteria)}.
+    # # 🧠 1️⃣ LLM Self-Evaluation (Faithfulness / Relevance / Clarity / Coverage)
+    # st.subheader("🔍 LLM Self-Evaluation")
 
-    Question: {user_query}
-    Answer: {final_report}
+    # criteria = [
+    #     "Factual accuracy",
+    #     "Clarity and coherence",
+    #     "Relevance to the question",
+    #     "Coverage (completeness)",
+    # ]
 
-    Respond in strict JSON format with no preamble or explanation. Return the JSON only:
-    {{"Factual accuracy": <score>, "Clarity and coherence": <score>, "Relevance": <score>, "Coverage": <score>}}
-    """
+    # eval_prompt = f"""
+    # You are an expert evaluator.
+    # Evaluate the following research report on a scale of 1–10 for each of these criteria:
+    # {", ".join(criteria)}.
 
-    try:
-        llm_response = llm.invoke(eval_prompt)
-        st.json(llm_response)
-    except Exception as e:
-        st.warning(f"❌ LLM evaluation failed: {e}")
+    # Question: {user_query}
+    # Answer: {final_report}
 
-    # 🔢 2️⃣ Embedding-Based Semantic Similarity
-    st.subheader("🧩 Embedding-Based Semantic Similarity")
+    # Respond in strict JSON format with no preamble or explanation. Return the JSON only:
+    # {{"Factual accuracy": <score>, "Clarity and coherence": <score>, "Relevance": <score>, "Coverage": <score>}}
+    # """
 
-    try:
-        embedder = OllamaEmbeddings(model="llama3.2")
-        context_emb = np.mean(embedder.embed_documents([compiled_findings]), axis=0)
-        answer_emb = embedder.embed_query(final_report)
-        similarity = cosine_similarity([context_emb], [answer_emb])[0][0]
-        st.info(f"Semantic similarity score: {similarity:.3f}")
-    except Exception as e:
-        st.warning(f"⚠️ Semantic similarity evaluation failed: {e}")
+    # try:
+    #     llm_response = llm.invoke(eval_prompt)
+    #     st.json(llm_response)
+    # except Exception as e:
+    #     st.warning(f"❌ LLM evaluation failed: {e}")
 
-    # 📖 3️⃣ Readability Metrics
-    st.subheader("📚 Readability Metrics")
+    # # 🔢 2️⃣ Embedding-Based Semantic Similarity
+    # st.subheader("🧩 Embedding-Based Semantic Similarity")
 
-    try:
-        readability = textstat.flesch_reading_ease(final_report)
-        grade_level = textstat.flesch_kincaid_grade(final_report)
-        st.info(f"Flesch Reading Ease: {readability:.2f}")
-        st.info(f"Flesch-Kincaid Grade Level: {grade_level:.2f}")
-    except Exception as e:
-        st.warning(f"⚠️ Readability evaluation failed: {e}")
+    # try:
+    #     embedder = OllamaEmbeddings(model="llama3.2")
+    #     context_emb = np.mean(embedder.embed_documents([compiled_findings]), axis=0)
+    #     answer_emb = embedder.embed_query(final_report)
+    #     similarity = cosine_similarity([context_emb], [answer_emb])[0][0]
+    #     st.info(f"Semantic similarity score: {similarity:.3f}")
+    # except Exception as e:
+    #     st.warning(f"⚠️ Semantic similarity evaluation failed: {e}")
 
-    # 🔤 4️⃣ Keyword Overlap
-    st.subheader("🔡 Keyword Overlap Metric")
+    # # 📖 3️⃣ Readability Metrics
+    # st.subheader("📚 Readability Metrics")
 
-    def keyword_overlap(a, b):
-        words_a = set(a.lower().split())
-        words_b = set(b.lower().split())
-        return (
-            len(words_a & words_b) / len(words_a | words_b) if words_a | words_b else 0
-        )
+    # try:
+    #     readability = textstat.flesch_reading_ease(final_report)
+    #     grade_level = textstat.flesch_kincaid_grade(final_report)
+    #     st.info(f"Flesch Reading Ease: {readability:.2f}")
+    #     st.info(f"Flesch-Kincaid Grade Level: {grade_level:.2f}")
+    # except Exception as e:
+    #     st.warning(f"⚠️ Readability evaluation failed: {e}")
 
-    try:
-        overlap = keyword_overlap(compiled_findings, final_report)
-        st.info(f"Keyword overlap: {overlap:.3f}")
-    except Exception as e:
-        st.warning(f"⚠️ Keyword overlap evaluation failed: {e}")
+    # # 🔤 4️⃣ Keyword Overlap
+    # st.subheader("🔡 Keyword Overlap Metric")
 
-    progress.progress(100)
-    st.success("Research pipeline completed!")
+    # def keyword_overlap(a, b):
+    #     words_a = set(a.lower().split())
+    #     words_b = set(b.lower().split())
+    #     return (
+    #         len(words_a & words_b) / len(words_a | words_b) if words_a | words_b else 0
+    #     )
 
-    with st.expander("📚 Sources Used"):
-        if all_sources:
-            st.write("### Documents referenced:")
+    # try:
+    #     overlap = keyword_overlap(compiled_findings, final_report)
+    #     st.info(f"Keyword overlap: {overlap:.3f}")
+    # except Exception as e:
+    #     st.warning(f"⚠️ Keyword overlap evaluation failed: {e}")
 
-            # Deduplicate sources
-            seen = set()
-            for src in all_sources:
-                ref = src.get("source") or src.get("file_path") or src.get("title")
-                if ref and ref not in seen:
-                    seen.add(ref)
+    # progress.progress(100)
+    # st.success("Research pipeline completed!")
 
-                    # Format clickable arXiv links
-                    if "arxiv" in ref.lower():
-                        st.markdown(f"- [{ref}]({ref})")
-                    else:
-                        st.markdown(f"- {ref}")
-        else:
-            st.write("No sources collected.")
+    # with st.expander("📚 Sources Used"):
+    #     if all_sources:
+    #         st.write("### Documents referenced:")
+
+    #         # Deduplicate sources
+    #         seen = set()
+    #         for src in all_sources:
+    #             ref = src.get("source") or src.get("file_path") or src.get("title")
+    #             if ref and ref not in seen:
+    #                 seen.add(ref)
+
+    #                 # Format clickable arXiv links
+    #                 if "arxiv" in ref.lower():
+    #                     st.markdown(f"- [{ref}]({ref})")
+    #                 else:
+    #                     st.markdown(f"- {ref}")
+    #     else:
+    #         st.write("No sources collected.")

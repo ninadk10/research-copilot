@@ -157,7 +157,6 @@ if st.button("Run Research Agent") and user_query.strip():
     compiled_findings = "\n\n".join([str(f) for f in findings if f])
     progress.progress(40)
 
-
     # Step 3: Writer
     with st.expander("3️⃣ Writer: Draft Report"):
         draft_report = writer_tool(compiled_findings)
@@ -199,7 +198,7 @@ if st.button("Run Research Agent") and user_query.strip():
     Question: {user_query}
     Answer: {final_report}
 
-    Respond in strict JSON format:
+    Respond in strict JSON format with no preamble or explanation. Return the JSON only:
     {{"Factual accuracy": <score>, "Clarity and coherence": <score>, "Relevance": <score>, "Coverage": <score>}}
     """
 
@@ -247,27 +246,25 @@ if st.button("Run Research Agent") and user_query.strip():
         st.info(f"Keyword overlap: {overlap:.3f}")
     except Exception as e:
         st.warning(f"⚠️ Keyword overlap evaluation failed: {e}")
-    
+
     progress.progress(100)
     st.success("Research pipeline completed!")
 
-
     with st.expander("📚 Sources Used"):
-    if all_sources:
-        st.write("### Documents referenced:")
+        if all_sources:
+            st.write("### Documents referenced:")
 
-        # Deduplicate sources
-        seen = set()
-        for src in all_sources:
-            ref = src.get("source") or src.get("file_path") or src.get("title")
-            if ref and ref not in seen:
-                seen.add(ref)
+            # Deduplicate sources
+            seen = set()
+            for src in all_sources:
+                ref = src.get("source") or src.get("file_path") or src.get("title")
+                if ref and ref not in seen:
+                    seen.add(ref)
 
-                # Format clickable arXiv links
-                if "arxiv" in ref.lower():
-                    st.markdown(f"- [{ref}]({ref})")
-                else:
-                    st.markdown(f"- {ref}")
-    else:
-        st.write("No sources collected.")
-
+                    # Format clickable arXiv links
+                    if "arxiv" in ref.lower():
+                        st.markdown(f"- [{ref}]({ref})")
+                    else:
+                        st.markdown(f"- {ref}")
+        else:
+            st.write("No sources collected.")
